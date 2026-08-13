@@ -148,7 +148,7 @@ class RecordLayer : public geode::Popup, public TextInputDelegate {
 
     void toggleRecording(CCObject *);
 
-    void togglePlaying(CCObject *);
+    void togglePlaying(CCObject *, bool forceRestart = false);
 
     void toggleRender(CCObject *btn);
 
