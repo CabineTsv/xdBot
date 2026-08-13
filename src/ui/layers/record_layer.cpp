@@ -272,7 +272,7 @@ void RecordLayer::toggleRecording(CCObject *) {
     bot.lastAutoSaveMS = asp::time::Instant::now();
 }
 
-void RecordLayer::togglePlaying(CCObject *) {
+void RecordLayer::togglePlaying(CCObject *, bool forceRestart) {
     auto &bot = Bot::get();
 
     if (Bot::hasIncompatibleMods())
@@ -284,8 +284,6 @@ void RecordLayer::togglePlaying(CCObject *) {
     bot.state = bot.state == state::playing ? state::none : state::playing;
 
     if (bot.state == state::playing) {
-        bot.currentAction = 0;
-        bot.currentFrameFix = 0;
         bot_incompat::autoDisableBotSettings();
 
         bot.replay.xdBotMacro = bot.replay.botInfo.name == "xdBot";
@@ -293,12 +291,33 @@ void RecordLayer::togglePlaying(CCObject *) {
         PlayLayer *pl = PlayLayer::get();
         PlayLayer *plScene = CCScene::get()->getChildByType<PlayLayer>(0);
 
-        if (pl && plScene) {
-            if (!pl->m_isPaused && !pl->m_levelEndAnimationStarted)
-                pl->m_isPlatformer ? pl->resetLevelFromStart()
-                                   : pl->resetLevel();
-            else
-                bot.restart = true;
+        if (forceRestart) {
+            bot.currentAction = 0;
+            bot.currentFrameFix = 0;
+
+            if (pl && plScene) {
+                if (!pl->m_isPaused && !pl->m_levelEndAnimationStarted)
+                    pl->m_isPlatformer ? pl->resetLevelFromStart()
+                                       : pl->resetLevel();
+                else
+                    bot.restart = true;
+            }
+        } else {
+            int frame = (pl && plScene) ? Bot::getCurrentFrame() : 0;
+
+            bot.currentAction = 0;
+            while (bot.currentAction < bot.replay.inputs.size() &&
+                   bot.replay.inputs[bot.currentAction].frame < frame)
+                bot.currentAction++;
+
+            bot.currentFrameFix = 0;
+            while (bot.currentFrameFix < bot.replay.frameFixes.size() &&
+                   bot.replay.frameFixes[bot.currentFrameFix].frame < frame)
+                bot.currentFrameFix++;
+
+            bot.respawnFrame = -1;
+            bot.restart = false;
+            bot.firstAttempt = false;
         }
     }
 
@@ -1260,4 +1279,3 @@ void RecordLayer::updateTPS() {
         tpsInput->defocus();
     }
 }
-// ts broke opening ui btw
