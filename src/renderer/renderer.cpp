@@ -422,7 +422,7 @@ void Renderer::start() {
         Bot::get().restart = true;
 
     if (Bot::get().state != state::playing && !Bot::get().replay.inputs.empty())
-        Bot::togglePlaying();
+        Bot::togglePlaying(true);
 
     if (!mod->setSavedValue("first_render_", true)) {
         FLAlertLayer::create("Warning",
