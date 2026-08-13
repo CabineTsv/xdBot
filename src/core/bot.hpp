@@ -61,7 +61,7 @@ class Bot {
 
     static void toggleRecording();
 
-    static void togglePlaying();
+    static void togglePlaying(bool forceRestart = false);
 
     static void resetState(bool cp = false);
 
