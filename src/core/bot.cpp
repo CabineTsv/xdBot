@@ -276,7 +276,7 @@ void Bot::toggleRecording() {
     layer->onClose(nullptr);
 }
 
-void Bot::togglePlaying() {
+void Bot::togglePlaying(bool forceRestart) {
     if (hasIncompatibleMods())
         return;
 
@@ -284,12 +284,12 @@ void Bot::togglePlaying() {
     if (bot.layer) {
         auto* layer = static_cast<RecordLayer*>(bot.layer);
         layer->playing->toggle(bot.state != state::playing);
-        layer->togglePlaying(nullptr);
+        layer->togglePlaying(nullptr, forceRestart);
         return;
     }
 
     auto* layer = RecordLayer::create();
-    layer->togglePlaying(nullptr);
+    layer->togglePlaying(nullptr, forceRestart);
     layer->onClose(nullptr);
 }
 
