@@ -1175,6 +1175,11 @@ void RecordLayer::loadSetting(const RecordSetting& sett, float yPos) {
 }
 
 void RecordLayer::goToSettingsPage(int page) {
+    if (page < 0 || static_cast<size_t>(page) >= settings.size())
+        page = 0;
+
+    Bot::get().currentPage = page;
+
     checkSpeedhack();
 
     for (size_t i = 0; i < nodes.size(); i++)
@@ -1255,3 +1260,4 @@ void RecordLayer::updateTPS() {
         tpsInput->defocus();
     }
 }
+// ts broke opening ui btw
