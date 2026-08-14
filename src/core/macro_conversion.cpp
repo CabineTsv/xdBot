@@ -1,5 +1,7 @@
 #include "macro_conversion.hpp"
 
+#include "../gdr/xb_format.hpp"
+
 using namespace geode::prelude;
 
 namespace macro_conversion {
@@ -12,6 +14,8 @@ std::string extensionForFormat(SaveFormat format) {
         return ".gdr";
     case SaveFormat::JSON:
         return ".gdr.json";
+    case SaveFormat::XB:
+        return ".xb";
     }
 
     return ".gdr2";
@@ -74,6 +78,8 @@ gdr::Result<std::vector<uint8_t>> exportData(BotReplay& replay, SaveFormat forma
         return gdr::Ok<std::vector<uint8_t>>(replay.exportGDR1());
     case SaveFormat::JSON:
         return gdr::Ok<std::vector<uint8_t>>(replay.exportJSON());
+    case SaveFormat::XB:
+        return gdr::Ok<std::vector<uint8_t>>(xb_format::exportXB(replay));
     }
 
     return gdr::Err<std::vector<uint8_t>>("Unknown save format");
