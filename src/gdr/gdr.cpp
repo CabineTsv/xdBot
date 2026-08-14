@@ -1,5 +1,7 @@
 #include "gdr.hpp"
 
+#include "xb_format.hpp"
+
 #include <Geode/Geode.hpp>
 
 #include <optional>
@@ -509,6 +511,17 @@ BotReplay fromLegacy(const LegacyMacro& legacy) {
 }
 
 BotReplay importReplay(std::vector<uint8_t>& data) {
+    if (xb_format::isXBData(data)) {
+        auto result = xb_format::importXB(data);
+        if (result.isOk()) {
+            auto replay = std::move(result).unwrap();
+            normalizeImportedReplay(replay);
+            return replay;
+        }
+
+        log::warn("XB import failed: {}", result.unwrapErr());
+    }
+
     if (data.size() >= 3 && data[0] == 'G' && data[1] == 'D' && data[2] == 'R') {
         std::span<uint8_t> span(data.data(), data.size());
         auto result = gdr::Replay<BotReplay, ReplayInput>::importData(span);
