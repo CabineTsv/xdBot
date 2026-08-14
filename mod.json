@@ -33,7 +33,7 @@
 			"name": "Default Save Format",
 			"description": "Default format for saving macros.",
 			"default": "GDR2",
-			"one-of": ["GDR2", "GDR", "JSON"]
+			"one-of": ["GDR2", "GDR", "JSON", "XB"]
 		},
 		"frame_offset": {
 			"name": "Frame Offset",
