@@ -98,8 +98,6 @@ struct PracticeCheckpointData {
     std::vector<gdr_legacy::FrameFix> frameFixes;
     gd::unordered_map<int, int> persistentItemMap;
     std::array<float, 2000> varianceValues = {};
-    std::vector<GameObject*> calcNonEffectObjects;
-    int calcNonEffectObjectsSize = 0;
     std::vector<GameObject*> brokenObjects;
     uint64_t randomSeed = 0;
 
@@ -121,8 +119,6 @@ struct PracticeCheckpointData {
         if (plObj->m_effectManager)
             persistentItemMap = plObj->m_effectManager->m_persistentItemCountMap;
         varianceValues = plObj->m_varianceValues;
-        calcNonEffectObjects = plObj->m_calcNonEffectObjects;
-        calcNonEffectObjectsSize = plObj->m_calcNonEffectObjectsSize;
         brokenObjects = broken;
         randomSeed = GameToolbox::getfast_srand();
         auto& bot = Bot::get();
@@ -150,8 +146,6 @@ struct PracticeCheckpointData {
         if (plObj->m_effectManager)
             plObj->m_effectManager->m_persistentItemCountMap = persistentItemMap;
         plObj->m_varianceValues = varianceValues;
-        plObj->m_calcNonEffectObjects = calcNonEffectObjects;
-        plObj->m_calcNonEffectObjectsSize = calcNonEffectObjectsSize;
 
         for (auto* obj : brokenObjects) {
             if (!obj)
