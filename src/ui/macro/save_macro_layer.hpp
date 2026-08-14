@@ -28,6 +28,9 @@ class SaveMacroLayer : public geode::Popup {
         } else if (defaultFormatStr == "JSON") {
             defaultFormat = SaveFormat::JSON;
             selectedFormat = SaveFormat::JSON;
+        } else if (defaultFormatStr == "XB") {
+            defaultFormat = SaveFormat::XB;
+            selectedFormat = SaveFormat::XB;
         } else {
             defaultFormat = SaveFormat::GDR2;
             selectedFormat = SaveFormat::GDR2;
@@ -118,7 +121,7 @@ class SaveMacroLayer : public geode::Popup {
         leftArrow = CCMenuItemExt::createSpriteExtra(
             leftSpr, [this](CCMenuItemSpriteExtra *leftBtn) {
                 int current = static_cast<int>(selectedFormat);
-                current = (current - 1 + 3) % 3;
+                current = (current - 1 + 4) % 4;
                 selectedFormat = static_cast<SaveFormat>(current);
                 updateFormatLabel();
             });
@@ -142,7 +145,7 @@ class SaveMacroLayer : public geode::Popup {
         rightArrow = CCMenuItemExt::createSpriteExtra(
             rightSpr, [this](CCMenuItemSpriteExtra *rightBtn) {
                 int current = static_cast<int>(selectedFormat);
-                current = (current + 1) % 3;
+                current = (current + 1) % 4;
                 selectedFormat = static_cast<SaveFormat>(current);
                 updateFormatLabel();
             });
@@ -170,6 +173,10 @@ class SaveMacroLayer : public geode::Popup {
         case SaveFormat::JSON:
             formatLabel->setString(fmt::format("{}: JSON", prefix).c_str());
             arrowLabel->setString("JSON");
+            break;
+        case SaveFormat::XB:
+            formatLabel->setString(fmt::format("{}: XB", prefix).c_str());
+            arrowLabel->setString("XB");
             break;
         }
     }
