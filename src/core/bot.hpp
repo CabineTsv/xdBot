@@ -11,7 +11,7 @@
 
 enum state { none, recording, playing };
 
-enum class SaveFormat { GDR2, GDR1, JSON };
+enum class SaveFormat { GDR2, GDR1, JSON, XB };
 
 struct CheckpointData {
     int frame;
