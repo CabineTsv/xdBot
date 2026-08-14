@@ -303,6 +303,12 @@ void RecordLayer::togglePlaying(CCObject *, bool forceRestart) {
                     bot.restart = true;
             }
         } else {
+            Bot::updateMacroTPS();
+
+            if (pl && plScene)
+                bot.updater.frameCount = std::max(
+                    static_cast<int>(pl->m_gameState.m_levelTime * Bot::getTPS()) + 1, 0);
+
             int frame = (pl && plScene) ? Bot::getCurrentFrame() : 0;
 
             bot.currentAction = 0;
