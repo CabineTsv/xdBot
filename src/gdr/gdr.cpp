@@ -117,6 +117,10 @@ std::optional<gdr_legacy::FrameFix> parseFrameFix(matjson::Value const& frameFix
         frameFix.p1.pos.y = static_cast<float>(p1["y"].asDouble().unwrapOr(0.0));
     if (rotation && p1.contains("r"))
         frameFix.p1.rotation = static_cast<float>(p1["r"].asDouble().unwrapOr(0.0));
+    if (p1.contains("vy"))
+        frameFix.p1.yVelocity = p1["vy"].asDouble().unwrapOr(0.0);
+    if (p1.contains("vx"))
+        frameFix.p1.xVelocity = p1["vx"].asDouble().unwrapOr(0.0);
 
     if (!frameFixJson.contains("p2"))
         return frameFix;
@@ -128,6 +132,10 @@ std::optional<gdr_legacy::FrameFix> parseFrameFix(matjson::Value const& frameFix
         frameFix.p2.pos.y = static_cast<float>(p2["y"].asDouble().unwrapOr(0.0));
     if (rotation && p2.contains("r"))
         frameFix.p2.rotation = static_cast<float>(p2["r"].asDouble().unwrapOr(0.0));
+    if (p2.contains("vy"))
+        frameFix.p2.yVelocity = p2["vy"].asDouble().unwrapOr(0.0);
+    if (p2.contains("vx"))
+        frameFix.p2.xVelocity = p2["vx"].asDouble().unwrapOr(0.0);
 
     return frameFix;
 }
@@ -142,6 +150,10 @@ matjson::Value saveFrameFix(gdr_legacy::FrameFix const& fix) {
         p1Json["y"] = fix.p1.pos.y;
     if (fix.p1.rotation != 0.f)
         p1Json["r"] = fix.p1.rotation;
+    if (fix.p1.yVelocity != 0.0)
+        p1Json["vy"] = fix.p1.yVelocity;
+    if (fix.p1.xVelocity != 0.0)
+        p1Json["vx"] = fix.p1.xVelocity;
 
     if (fix.p2.pos.x != 0.f)
         p2Json["x"] = fix.p2.pos.x;
@@ -149,6 +161,10 @@ matjson::Value saveFrameFix(gdr_legacy::FrameFix const& fix) {
         p2Json["y"] = fix.p2.pos.y;
     if (fix.p2.rotation != 0.f)
         p2Json["r"] = fix.p2.rotation;
+    if (fix.p2.yVelocity != 0.0)
+        p2Json["vy"] = fix.p2.yVelocity;
+    if (fix.p2.xVelocity != 0.0)
+        p2Json["vx"] = fix.p2.xVelocity;
 
     if (p1Json.size() == 0 && p2Json.size() == 0)
         return matjson::Value();
@@ -167,6 +183,12 @@ void normalizeImportedReplay(BotReplay& replay) {
     replay.xdBotMacro = replay.botInfo.name == "xdBot";
     replay.isLegacy = replay.botInfo.name == "xdBot" && replay.botInfo.version < 2600;
 }
+
+// Old GDR2 saves (before frame-fix velocity was included) start their
+// extension data directly with the frame-fix count, which for any real
+// macro is nowhere near this value - so seeing this exact u64 first
+// unambiguously means the newer, velocity-including layout is present.
+constexpr uint64_t kFrameFixVelocityMarker = 0xFFFFFFFFFFFFFFFEULL;
 } // namespace
 
 std::string getModVersionString() {
@@ -208,6 +230,7 @@ std::vector<uint8_t> BotReplay::exportJSON() {
 }
 
 void BotReplay::saveExtension(binary_writer& writer) const {
+    writer << kFrameFixVelocityMarker;
     writer << static_cast<uint64_t>(frameFixes.size());
 
     for (auto const& fix : frameFixes) {
@@ -216,16 +239,26 @@ void BotReplay::saveExtension(binary_writer& writer) const {
         writer << fix.p1.pos.y;
         writer << fix.p1.rotation;
         writer << fix.p1.rotate;
+        writer << fix.p1.yVelocity;
+        writer << fix.p1.xVelocity;
         writer << fix.p2.pos.x;
         writer << fix.p2.pos.y;
         writer << fix.p2.rotation;
         writer << fix.p2.rotate;
+        writer << fix.p2.yVelocity;
+        writer << fix.p2.xVelocity;
     }
 }
 
 void BotReplay::parseExtension(binary_reader& reader) {
-    uint64_t count = 0;
-    reader >> count;
+    uint64_t first = 0;
+    reader >> first;
+
+    bool hasVelocity = (first == kFrameFixVelocityMarker);
+
+    uint64_t count = first;
+    if (hasVelocity)
+        reader >> count;
 
     frameFixes.clear();
     frameFixes.reserve(count);
@@ -240,10 +273,18 @@ void BotReplay::parseExtension(binary_reader& reader) {
         reader >> fix.p1.pos.y;
         reader >> fix.p1.rotation;
         reader >> fix.p1.rotate;
+        if (hasVelocity) {
+            reader >> fix.p1.yVelocity;
+            reader >> fix.p1.xVelocity;
+        }
         reader >> fix.p2.pos.x;
         reader >> fix.p2.pos.y;
         reader >> fix.p2.rotation;
         reader >> fix.p2.rotate;
+        if (hasVelocity) {
+            reader >> fix.p2.yVelocity;
+            reader >> fix.p2.xVelocity;
+        }
 
         frameFixes.push_back(fix);
     }
