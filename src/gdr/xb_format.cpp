@@ -8,9 +8,14 @@ namespace {
 
 constexpr uint8_t kMagic0 = 'X';
 constexpr uint8_t kMagic1 = 'B';
-constexpr uint8_t kMagic2 = 0x01;
+constexpr uint8_t kVersionNoVelocity = 0x01;
+constexpr uint8_t kVersionWithVelocity = 0x02;
+constexpr uint8_t kCurrentVersion = kVersionWithVelocity;
 constexpr size_t kHeaderSize = 3;
 constexpr size_t kChecksumSize = 4;
+// Generous enough to never be hit by a real macro (an hour at 240 TPS is
+// under 900k frames), but bounded so a corrupted or hand-crafted count field
+// can't force a multi-gigabyte reserve().
 constexpr uint32_t kMaxRecordCount = 50'000'000u;
 
 uint32_t fnv1a(std::span<uint8_t const> data) {
@@ -141,16 +146,16 @@ bool readVarUint(std::span<uint8_t const> data, size_t& offset, uint64_t& out) {
 
 bool isXBData(std::span<uint8_t const> data) {
     return data.size() >= kHeaderSize && data[0] == kMagic0 && data[1] == kMagic1 &&
-           data[2] == kMagic2;
+           (data[2] == kVersionNoVelocity || data[2] == kVersionWithVelocity);
 }
 
 std::vector<uint8_t> exportXB(BotReplay const& replay) {
     std::vector<uint8_t> out;
-    out.reserve(64 + replay.inputs.size() * 3 + replay.frameFixes.size() * 26);
+    out.reserve(64 + replay.inputs.size() * 3 + replay.frameFixes.size() * 34);
 
     out.push_back(kMagic0);
     out.push_back(kMagic1);
-    out.push_back(kMagic2);
+    out.push_back(kCurrentVersion);
 
     writeU32(out, static_cast<uint32_t>(std::max(replay.botInfo.version, 0)));
     writeU32(out, static_cast<uint32_t>(std::max(replay.gameVersion, 0)));
@@ -201,9 +206,13 @@ std::vector<uint8_t> exportXB(BotReplay const& replay) {
         writeF32(out, fix.p1.pos.x);
         writeF32(out, fix.p1.pos.y);
         writeF32(out, fix.p1.rotation);
+        writeF32(out, static_cast<float>(fix.p1.yVelocity));
+        writeF32(out, static_cast<float>(fix.p1.xVelocity));
         writeF32(out, fix.p2.pos.x);
         writeF32(out, fix.p2.pos.y);
         writeF32(out, fix.p2.rotation);
+        writeF32(out, static_cast<float>(fix.p2.yVelocity));
+        writeF32(out, static_cast<float>(fix.p2.xVelocity));
     }
 
     writeU32(out, fnv1a(out));
@@ -228,6 +237,8 @@ gdr::Result<BotReplay> importXB(std::span<uint8_t const> data) {
     uint32_t computedChecksum = fnv1a(data.subspan(0, payloadSize));
     if (computedChecksum != storedChecksum)
         return gdr::Err<BotReplay>("XB checksum mismatch - file is corrupted or not a genuine xb macro");
+
+    bool hasVelocity = data[2] == kVersionWithVelocity;
 
     size_t offset = kHeaderSize;
 
@@ -305,9 +316,30 @@ gdr::Result<BotReplay> importXB(std::span<uint8_t const> data) {
 
         if (!readVarUint(data, offset, delta) || !readU8(data, offset, fixFlags) ||
             !readF32(data, offset, fix.p1.pos.x) || !readF32(data, offset, fix.p1.pos.y) ||
-            !readF32(data, offset, fix.p1.rotation) || !readF32(data, offset, fix.p2.pos.x) ||
-            !readF32(data, offset, fix.p2.pos.y) || !readF32(data, offset, fix.p2.rotation))
+            !readF32(data, offset, fix.p1.rotation))
             return gdr::Err<BotReplay>("XB: truncated frame fix data");
+
+        if (hasVelocity) {
+            float p1YVelocity = 0.f;
+            float p1XVelocity = 0.f;
+            if (!readF32(data, offset, p1YVelocity) || !readF32(data, offset, p1XVelocity))
+                return gdr::Err<BotReplay>("XB: truncated frame fix data");
+            fix.p1.yVelocity = static_cast<double>(p1YVelocity);
+            fix.p1.xVelocity = static_cast<double>(p1XVelocity);
+        }
+
+        if (!readF32(data, offset, fix.p2.pos.x) || !readF32(data, offset, fix.p2.pos.y) ||
+            !readF32(data, offset, fix.p2.rotation))
+            return gdr::Err<BotReplay>("XB: truncated frame fix data");
+
+        if (hasVelocity) {
+            float p2YVelocity = 0.f;
+            float p2XVelocity = 0.f;
+            if (!readF32(data, offset, p2YVelocity) || !readF32(data, offset, p2XVelocity))
+                return gdr::Err<BotReplay>("XB: truncated frame fix data");
+            fix.p2.yVelocity = static_cast<double>(p2YVelocity);
+            fix.p2.xVelocity = static_cast<double>(p2XVelocity);
+        }
 
         currentFixFrame += delta;
         fix.frame = static_cast<int>(currentFixFrame);
