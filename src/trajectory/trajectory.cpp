@@ -689,6 +689,18 @@ void activatePortalForTrajectory(GJBaseGameLayer* layer, PlayerObject* player, E
     player->switchedToMode(portal->m_objectType);
 
     switch (portal->m_objectType) {
+    case GameObjectType::CubePortal:
+        // Turning back into a cube means turning off whichever vehicle mode
+        // was previously active. Each toggle*Mode call is a no-op if that
+        // mode wasn't the active one, so it's safe to call all of them.
+        player->toggleFlyMode(false, true);
+        player->toggleRollMode(false, true);
+        player->toggleBirdMode(false, true);
+        player->toggleDartMode(false, true);
+        player->toggleRobotMode(false, true);
+        player->toggleSpiderMode(false, true);
+        player->toggleSwingMode(false, true);
+        break;
     case GameObjectType::ShipPortal:
         player->toggleFlyMode(true, true);
         break;
