@@ -63,6 +63,12 @@ class Bot {
 
     static void togglePlaying();
 
+    // Points currentAction at the first input at/after the player's current
+    // frame (skipping everything earlier) and fills pendingHeldButtons with
+    // whichever buttons were already down at that frame, so playback can
+    // resume mid-level instead of always starting from the beginning.
+    static void seekPlaybackToCurrentFrame();
+
     static void resetState(bool cp = false);
 
     static bool shouldStep();
@@ -201,6 +207,12 @@ class Bot {
     size_t currentFrameFix = 0;
     bool frameFixes = false;
     bool inputFixes = false;
+
+    struct HeldButtonState {
+        int button;
+        bool player2;
+    };
+    std::vector<HeldButtonState> pendingHeldButtons;
 
     int currentPage = 0;
     float currentPitch = 1.f;
