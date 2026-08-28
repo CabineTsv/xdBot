@@ -5,7 +5,9 @@
 #include "../ui/game/game_ui.hpp"
 #include "../ui/layers/record_layer.hpp"
 
+#include <map>
 #include <random>
+#include <utility>
 
 namespace {
 bool g_botBootstrapping = false;
@@ -293,11 +295,37 @@ void Bot::togglePlaying() {
     layer->onClose(nullptr);
 }
 
+void Bot::seekPlaybackToCurrentFrame() {
+    auto& bot = Bot::get();
+    int frame = Bot::getCurrentFrame();
+
+    // Walk every input strictly before the current frame, tracking the
+    // last down/up state per (button, player2) pair. Whatever's still
+    // "down" once we reach the current frame is currently being held.
+    std::map<std::pair<int, bool>, bool> heldState;
+
+    size_t i = 0;
+    while (i < bot.replay.inputs.size() && bot.replay.inputs[i].frame < static_cast<uint64_t>(frame)) {
+        auto& in = bot.replay.inputs[i];
+        heldState[{in.button, in.player2}] = in.down;
+        i++;
+    }
+
+    bot.currentAction = i;
+
+    bot.pendingHeldButtons.clear();
+    for (auto& [key, down] : heldState) {
+        if (down)
+            bot.pendingHeldButtons.push_back({key.first, key.second});
+    }
+}
+
 void Bot::resetState(bool cp) {
     auto& bot = Bot::get();
     bot.restart = false;
     bot.state = state::none;
     bot.attemptStartFrame = 0;
+    bot.pendingHeldButtons.clear();
 
     if (!cp)
         bot.checkpoints.clear();
