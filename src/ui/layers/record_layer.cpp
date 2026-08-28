@@ -284,7 +284,6 @@ void RecordLayer::togglePlaying(CCObject *) {
     bot.state = bot.state == state::playing ? state::none : state::playing;
 
     if (bot.state == state::playing) {
-        bot.currentAction = 0;
         bot.currentFrameFix = 0;
         bot_incompat::autoDisableBotSettings();
 
@@ -294,11 +293,17 @@ void RecordLayer::togglePlaying(CCObject *) {
         PlayLayer *plScene = CCScene::get()->getChildByType<PlayLayer>(0);
 
         if (pl && plScene) {
-            if (!pl->m_isPaused && !pl->m_levelEndAnimationStarted)
-                pl->m_isPlatformer ? pl->resetLevelFromStart()
-                                   : pl->resetLevel();
-            else
+            if (pl->m_levelEndAnimationStarted) {
+                // There's no meaningful "current frame" to resume from once
+                // the level has already finished, so fall back to a restart.
                 bot.restart = true;
+            } else {
+                // Resume playback from wherever the player currently is
+                // instead of always restarting the attempt from 0%.
+                Bot::seekPlaybackToCurrentFrame();
+            }
+        } else {
+            bot.currentAction = 0;
         }
     }
 
