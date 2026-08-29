@@ -69,6 +69,11 @@ void Bot::updateSeed(bool isRestart) {
 
         GameToolbox::fast_srand(finalSeed);
         bot.safeMode = true;
+
+#ifdef GEODE_IS_WINDOWS
+        bot.shakeRandomState = (finalSeed ^ 0x5A17) & 0x7FFF;
+        bot.teleportRandomState = (finalSeed ^ 0x0F0D) & 0x7FFF;
+#endif
     }
 
     if (isRestart && bot.state == state::recording) {
