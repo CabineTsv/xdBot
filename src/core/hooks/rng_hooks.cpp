@@ -27,11 +27,11 @@ void teleportRandomOverride(safetyhook::Context& ctx) {
 } // namespace
 
 $execute {
-    utils::midhook(geode::base::get() + 0x23E173, "shakeRandomOverride", shakeRandomOverride);
-    utils::midhook(geode::base::get() + 0x23E1A1, "shakeRandomOverride", shakeRandomOverride);
-    utils::midhook(geode::base::get() + 0x23E1CB, "shakeRandomOverride", shakeRandomOverride);
-    utils::midhook(geode::base::get() + 0x23E1E9, "shakeRandomOverride", shakeRandomOverride);
-    utils::midhook(geode::base::get() + 0x20FED3, "teleportRandomOverride", teleportRandomOverride);
+    ::utils::midhook(geode::base::get() + 0x23E173, "shakeRandomOverride", shakeRandomOverride);
+    ::utils::midhook(geode::base::get() + 0x23E1A1, "shakeRandomOverride", shakeRandomOverride);
+    ::utils::midhook(geode::base::get() + 0x23E1CB, "shakeRandomOverride", shakeRandomOverride);
+    ::utils::midhook(geode::base::get() + 0x23E1E9, "shakeRandomOverride", shakeRandomOverride);
+    ::utils::midhook(geode::base::get() + 0x20FED3, "teleportRandomOverride", teleportRandomOverride);
 }
 
 #endif
