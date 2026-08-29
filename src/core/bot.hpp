@@ -94,6 +94,17 @@ class Bot {
     state state = none;
 
     geode::utils::random::Generator gen;
+#ifdef GEODE_IS_WINDOWS
+    // Real GD keeps these as separate RNG streams from the main fast_srand
+    // seed (confirmed in the 2.2081 bindings: GJBaseGameLayer::getPortalTarget
+    // uses its own LCG state at a different address than fast_rand's). We
+    // override both at the source via core/hooks/rng_hooks.cpp so a macro
+    // recorded across a multi-target teleport portal or a shake trigger
+    // reproduces the same portal choice / shake pattern on playback, instead
+    // of silently drifting from whatever the game's own untracked state does.
+    uint64_t shakeRandomState = 0;
+    uint64_t teleportRandomState = 0;
+#endif
     std::unordered_map<CheckpointObject*, CheckpointData> checkpoints;
     std::unordered_set<int> allKeybinds;
     std::unordered_set<int> playedFrames;
@@ -149,6 +160,8 @@ class Bot {
     std::vector<geode::Function<void(bool)>> onTpsEnabledChanged;
     std::vector<geode::Function<void(double)>> onTpsChanged;
 
+    bool eclipsePhysicsBypassPriorState = false;
+
     void setTpsEnabled(bool enabled) {
         if (tpsEnabled == enabled)
             return;
@@ -163,9 +176,14 @@ class Bot {
             cb(enabled);
 
         if (Loader::get()->getLoadedMod("eclipse.eclipse-menu")) {
-            eclipse::config::setInternal("global.tpsbypass.toggle", enabled);
-            if (enabled)
+            if (enabled) {
+                eclipsePhysicsBypassPriorState =
+                    eclipse::config::getInternal("global.tpsbypass.toggle", false);
+                eclipse::config::setInternal("global.tpsbypass.toggle", true);
                 eclipse::config::setInternal("global.tpsbypass", static_cast<double>(tps));
+            } else {
+                eclipse::config::setInternal("global.tpsbypass.toggle", eclipsePhysicsBypassPriorState);
+            }
         }
     }
 
