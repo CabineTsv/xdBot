@@ -249,9 +249,6 @@ class $modify(BGLHook, GJBaseGameLayer) {
 
         m_fields->macroInput = true;
 
-        // If playback was seeked to the player's current frame (mid-level
-        // resume instead of starting at 0%), immediately press whatever
-        // buttons were already being held at that point.
         if (!bot.pendingHeldButtons.empty()) {
             for (auto& held : bot.pendingHeldButtons) {
                 m_fields->queuedMacroInputs++;
