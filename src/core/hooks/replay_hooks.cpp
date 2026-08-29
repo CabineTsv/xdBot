@@ -73,12 +73,6 @@ class $modify(PlayLayer) {
     void postUpdate(float dt) {
         PlayLayer::postUpdate(dt);
 
-        auto& bot = Bot::get();
-        if (bot.tpsEnabled && Loader::get()->getLoadedMod("eclipse.eclipse-menu")) {
-            eclipse::config::setInternal("global.tpsbypass.toggle", true);
-            eclipse::config::setInternal("global.tpsbypass", static_cast<double>(bot.tps));
-        }
-
         if (m_fields->delayedLevelRestart != -1 &&
             m_fields->delayedLevelRestart <= Bot::getCurrentFrame()) {
             m_fields->delayedLevelRestart = -1;
@@ -251,8 +245,12 @@ class $modify(BGLHook, GJBaseGameLayer) {
 
         if (!bot.pendingHeldButtons.empty()) {
             for (auto& held : bot.pendingHeldButtons) {
+                bool player2 = !held.player2;
+                if (m_levelSettings->m_twoPlayerMode && Bot::flipControls())
+                    player2 = !player2;
+
                 m_fields->queuedMacroInputs++;
-                queueButton(held.button, true, held.player2, 0.0);
+                queueButton(held.button, true, player2, 0.0);
             }
             bot.pendingHeldButtons.clear();
         }
@@ -262,6 +260,8 @@ class $modify(BGLHook, GJBaseGameLayer) {
             auto input = bot.replay.inputs[bot.currentAction];
             if (frame != bot.respawnFrame) {
                 input.player2 = !input.player2;
+                if (m_levelSettings->m_twoPlayerMode && Bot::flipControls())
+                    input.player2 = !input.player2;
 
                 m_fields->queuedMacroInputs++;
                 queueButton(input.button, input.down, input.player2, 0.0);
@@ -353,6 +353,8 @@ class $modify(BGLHook, GJBaseGameLayer) {
 
         if (!m_levelSettings->m_twoPlayerMode)
             player2 = false;
+        else if (Bot::flipControls())
+            player2 = !player2;
 
         if (!bot.ignoreRecordAction && !bot.creatingTrajectory && !m_player1->m_isDead) {
             Bot::recordAction(frame, button, player2, hold);
