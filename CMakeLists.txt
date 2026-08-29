@@ -26,4 +26,10 @@ CPMAddPackage("gh:prevter/sinaps#b9c3434")
 CPMAddPackage("gh:maxnut/GDR-converter#71104a9")
 target_link_libraries(${PROJECT_NAME} sinaps libGDR GDRconverter)
 
+if (WIN32)
+    CPMAddPackage("gh:zyantific/zydis#bffbb61")
+    CPMAddPackage("gh:cursey/safetyhook#2f28386")
+    target_link_libraries(${PROJECT_NAME} Zydis safetyhook)
+endif()
+
 setup_geode_mod(${PROJECT_NAME})
