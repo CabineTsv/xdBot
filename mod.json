@@ -43,6 +43,36 @@
 			"min": -8,
 			"max": 8
 		},
+		"attempt_showcase_enabled": {
+			"name": "Attempt Showcase",
+			"description": "While playing a macro, intentionally fail a number of attempts at a random percentage before letting it complete - makes a macro'd run look like a natural first-time completion instead of a clean pass on attempt 1.",
+			"type": "bool",
+			"default": false
+		},
+		"attempt_showcase_min_percent": {
+			"name": "Min Fail %",
+			"description": "The lowest percentage a fake fail can happen at.",
+			"type": "int",
+			"default": 10,
+			"min": 0,
+			"max": 99
+		},
+		"attempt_showcase_max_percent": {
+			"name": "Max Fail %",
+			"description": "The highest percentage a fake fail can happen at.",
+			"type": "int",
+			"default": 90,
+			"min": 0,
+			"max": 99
+		},
+		"attempt_showcase_attempts": {
+			"name": "Fake Attempts",
+			"description": "How many attempts to fail before actually completing the level. Playback always restarts fully from 0% while this is enabled, rather than resuming mid-level.",
+			"type": "int",
+			"default": 3,
+			"min": 0,
+			"max": 100
+		},
 		"endscreen_button": {
 			"name": "Button at Endscreen",
 			"description": "Shows the menu button at the endscreen.",
