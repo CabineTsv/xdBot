@@ -86,7 +86,32 @@ class $modify(PlayLayer) {
             Bot::toggleSpeedhack();
         Bot::get().attemptStartFrame = 0;
         Bot::get().updater.frameCount = 0;
+        Bot::get().attemptShowcaseCompleted = 0;
+        Bot::get().attemptShowcaseArmed = false;
         PlayLayer::onQuit();
+    }
+
+    void destroyPlayer(PlayerObject* player, GameObject* object) {
+        auto& bot = Bot::get();
+
+        if (bot.state == state::playing && bot.attemptShowcaseArmed &&
+            !bot.attemptShowcaseDeathHandled) {
+            bot.attemptShowcaseDeathHandled = true;
+            bot.attemptShowcaseCompleted++;
+        }
+
+        PlayLayer::destroyPlayer(player, object);
+    }
+
+    void levelComplete() {
+        auto& bot = Bot::get();
+
+        if (bot.state == state::playing && bot.attemptShowcaseArmed) {
+            resetLevelFromStart();
+            return;
+        }
+
+        PlayLayer::levelComplete();
     }
 
     void pauseGame(bool b1) {
@@ -145,6 +170,21 @@ class $modify(PlayLayer) {
         bot.currentFrameFix = 0;
         bot.restart = false;
         bot.respawnFrame = frame;
+
+        bot.attemptShowcaseAltering = false;
+        bot.attemptShowcaseDeathHandled = false;
+        if (bot.state == state::playing &&
+            Mod::get()->getSettingValue<bool>("attempt_showcase_enabled") &&
+            bot.attemptShowcaseCompleted < Mod::get()->getSettingValue<int64_t>("attempt_showcase_attempts")) {
+            int lo = static_cast<int>(Mod::get()->getSettingValue<int64_t>("attempt_showcase_min_percent"));
+            int hi = static_cast<int>(Mod::get()->getSettingValue<int64_t>("attempt_showcase_max_percent"));
+            if (lo > hi)
+                std::swap(lo, hi);
+            bot.attemptShowcaseTargetPercent = geode::utils::random::generate(lo, hi);
+            bot.attemptShowcaseArmed = true;
+        } else {
+            bot.attemptShowcaseArmed = false;
+        }
 
         if (bot.state == state::recording)
             Bot::updateMacroInfo(this);
@@ -243,6 +283,12 @@ class $modify(BGLHook, GJBaseGameLayer) {
 
         m_fields->macroInput = true;
 
+        if (bot.attemptShowcaseArmed && !bot.attemptShowcaseAltering) {
+            auto* pl = PlayLayer::get();
+            if (pl && pl->getCurrentPercent() >= static_cast<float>(bot.attemptShowcaseTargetPercent))
+                bot.attemptShowcaseAltering = true;
+        }
+
         if (!bot.pendingHeldButtons.empty()) {
             for (auto& held : bot.pendingHeldButtons) {
                 bool player2 = !held.player2;
@@ -258,7 +304,8 @@ class $modify(BGLHook, GJBaseGameLayer) {
         while (bot.currentAction < bot.replay.inputs.size() &&
                frame >= bot.replay.inputs[bot.currentAction].frame) {
             auto input = bot.replay.inputs[bot.currentAction];
-            if (frame != bot.respawnFrame) {
+            bool skipForShowcase = bot.attemptShowcaseAltering && input.down;
+            if (frame != bot.respawnFrame && !skipForShowcase) {
                 input.player2 = !input.player2;
                 if (m_levelSettings->m_twoPlayerMode && Bot::flipControls())
                     input.player2 = !input.player2;
