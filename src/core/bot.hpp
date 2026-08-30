@@ -192,6 +192,12 @@ class Bot {
     float autosaveCheck = 2.f;
     bool autosaveEnabled = false;
 
+    int attemptShowcaseCompleted = 0; 
+    int attemptShowcaseTargetPercent = 0;
+    bool attemptShowcaseArmed = false;
+    bool attemptShowcaseAltering = false; 
+    bool attemptShowcaseDeathHandled = false;
+
     int respawnFrame = -1;
     int attemptStartFrame = 0;
     int frameOffset = 0;
