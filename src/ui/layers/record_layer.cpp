@@ -288,18 +288,18 @@ void RecordLayer::togglePlaying(CCObject *) {
         bot_incompat::autoDisableBotSettings();
 
         bot.replay.xdBotMacro = bot.replay.botInfo.name == "xdBot";
+        bot.attemptShowcaseCompleted = 0;
+        bot.attemptShowcaseArmed = false;
 
         PlayLayer *pl = PlayLayer::get();
         PlayLayer *plScene = CCScene::get()->getChildByType<PlayLayer>(0);
 
+        bool needsFullRestart = Mod::get()->getSettingValue<bool>("attempt_showcase_enabled");
+
         if (pl && plScene) {
-            if (pl->m_levelEndAnimationStarted) {
-                // There's no meaningful "current frame" to resume from once
-                // the level has already finished, so fall back to a restart.
+            if (pl->m_levelEndAnimationStarted || needsFullRestart) {
                 bot.restart = true;
             } else {
-                // Resume playback from wherever the player currently is
-                // instead of always restarting the attempt from 0%.
                 Bot::seekPlaybackToCurrentFrame();
             }
         } else {
