@@ -12,6 +12,30 @@ static std::vector<GameObject*>& brokenPracticeObjects() {
     return objects;
 }
 
+static std::unordered_set<GameObject*>& brokenPracticeObjectSet() {
+    static std::unordered_set<GameObject*> objects;
+    return objects;
+}
+
+static void markPracticeObjectBroken(GameObject* obj) {
+    if (!obj)
+        return;
+
+    if (brokenPracticeObjectSet().insert(obj).second)
+        brokenPracticeObjects().push_back(obj);
+}
+
+static void setBrokenPracticeObjects(std::vector<GameObject*> const& objects) {
+    brokenPracticeObjects() = objects;
+    brokenPracticeObjectSet().clear();
+    brokenPracticeObjectSet().insert(objects.begin(), objects.end());
+}
+
+static void clearBrokenPracticeObjects() {
+    brokenPracticeObjects().clear();
+    brokenPracticeObjectSet().clear();
+}
+
 struct HeldButtonState {
     bool p1Holding = false;
     bool p2Holding = false;
@@ -94,8 +118,8 @@ struct PracticeCheckpointData {
     double schedulerOverflow = 0.0;
     size_t currentAction = 0;
     size_t currentFrameFix = 0;
-    std::vector<input> inputs;
-    std::vector<gdr_legacy::FrameFix> frameFixes;
+    size_t inputCount = 0;
+    size_t frameFixCount = 0;
     gd::unordered_map<int, int> persistentItemMap;
     std::array<float, 2000> varianceValues = {};
     std::vector<GameObject*> calcNonEffectObjects;
@@ -135,8 +159,21 @@ struct PracticeCheckpointData {
         schedulerOverflow = bot.updater.overflow;
         currentAction = bot.currentAction;
         currentFrameFix = bot.currentFrameFix;
-        inputs = bot.replay.inputs;
-        frameFixes = bot.replay.frameFixes;
+        inputCount = bot.replay.inputs.size();
+        frameFixCount = bot.replay.frameFixes.size();
+    }
+
+    void restoreReplayLength() const {
+        auto& replay = Bot::get().replay;
+
+        if (replay.inputs.size() > inputCount)
+            replay.inputs.erase(replay.inputs.begin() + static_cast<std::ptrdiff_t>(inputCount),
+                                replay.inputs.end());
+
+        if (replay.frameFixes.size() > frameFixCount)
+            replay.frameFixes.erase(
+                replay.frameFixes.begin() + static_cast<std::ptrdiff_t>(frameFixCount),
+                replay.frameFixes.end());
     }
 
     void apply(PlayerObject* p1Obj, PlayerObject* p2Obj, PlayLayer* plObj) const {
@@ -160,6 +197,7 @@ struct PracticeCheckpointData {
             obj->m_isDisabled2 = true;
             obj->setOpacity(0.0f);
         }
+        setBrokenPracticeObjects(brokenObjects);
 
         auto& bot = Bot::get();
         if (bot.tps != tps)
@@ -178,10 +216,8 @@ struct PracticeCheckpointData {
             bot.currentAction = currentAction;
             bot.currentFrameFix = currentFrameFix;
 
-            if (bot.state == state::recording) {
-                bot.replay.inputs = inputs;
-                bot.replay.frameFixes = frameFixes;
-            }
+            if (bot.state == state::recording)
+                restoreReplayLength();
 
             bot.ignoreRecordAction = previousIgnore;
         }
@@ -199,10 +235,8 @@ struct PracticeCheckpointData {
         bot.frameOffset = frameOffset;
         bot.updater.overflow = schedulerOverflow;
 
-        if (bot.state == state::recording) {
-            bot.replay.inputs = inputs;
-            bot.replay.frameFixes = frameFixes;
-        }
+        if (bot.state == state::recording)
+            restoreReplayLength();
 
         int targetFrame = frame - frameOffset;
         bot.currentAction = 0;
@@ -380,9 +414,6 @@ class $modify(FixPlayLayer, PlayLayer) {
         bool shouldFix = PracticeFix::shouldEnable();
         auto& bot = Bot::get();
         bool wasRecordingOrPlaying = bot.state == state::recording || bot.state == state::playing;
-        std::optional<PracticeCheckpointData> snapshot;
-        if (auto* data = m_fields->findCheckpoint(checkpoint))
-            snapshot = *data;
 
         Bot::tryAutosave(m_level, checkpoint);
 
@@ -394,9 +425,13 @@ class $modify(FixPlayLayer, PlayLayer) {
         PlayLayer::loadFromCheckpoint(checkpoint);
         resetTPSBypassState();
 
-        if (snapshot && shouldFix)
+        auto* snapshot = m_fields->findCheckpoint(checkpoint);
+        if (!snapshot)
+            return;
+
+        if (shouldFix)
             snapshot->apply(m_player1, m_gameState.m_isDualMode ? m_player2 : nullptr, this);
-        if (snapshot && wasRecordingOrPlaying)
+        if (wasRecordingOrPlaying)
             snapshot->applyMacroState();
     }
 
@@ -413,11 +448,12 @@ class $modify(FixPlayLayer, PlayLayer) {
                 brokenPracticeObjects()
             );
             m_fields->removeCheckpoint(checkpoint);
-            m_fields->m_checkpoints.push_back(data);
 
             auto& bot = Bot::get();
             if (bot.state == state::recording)
                 bot.checkpoints[checkpoint] = data.toGlobalCheckpoint();
+
+            m_fields->m_checkpoints.push_back(std::move(data));
         }
         return checkpoint;
     }
@@ -446,7 +482,7 @@ class $modify(FixPlayLayer, PlayLayer) {
         if (!hadCheckpoints && !PracticeFix::isLoadingFrameStepperBackstep()) {
             m_fields->m_checkpoints.clear();
             Bot::get().checkpoints.clear();
-            brokenPracticeObjects().clear();
+            clearBrokenPracticeObjects();
             PracticeFix::clearStoredFrames();
         }
         PlayLayer::resetLevel();
@@ -467,7 +503,7 @@ class $modify(FixPlayLayer, PlayLayer) {
 class $modify(FixGJBaseGameLayer, GJBaseGameLayer) {
     void destroyObject(GameObject* obj) {
         if (PracticeFix::shouldEnable() && m_isPracticeMode)
-            brokenPracticeObjects().push_back(obj);
+            markPracticeObjectBroken(obj);
 
         GJBaseGameLayer::destroyObject(obj);
     }
