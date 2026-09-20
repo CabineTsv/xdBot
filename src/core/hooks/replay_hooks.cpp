@@ -7,6 +7,36 @@
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/PauseLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+
+namespace {
+
+void syncMacroToFrame(Bot& bot, int frame) {
+    auto const& inputs = bot.replay.inputs;
+    auto const& fixes = bot.replay.frameFixes;
+
+    int last = bot.lastPlayedFrame;
+    size_t cursor = bot.currentAction;
+
+    bool inSync = last >= 0 && frame >= last && cursor <= inputs.size() &&
+                  (cursor == inputs.size() || static_cast<int>(inputs[cursor].frame) > last) &&
+                  (cursor == 0 || static_cast<int>(inputs[cursor - 1].frame) <= last);
+
+    if (!inSync) {
+        bot.currentAction = 0;
+        while (bot.currentAction < inputs.size() &&
+               static_cast<int>(inputs[bot.currentAction].frame) < frame)
+            bot.currentAction++;
+
+        bot.currentFrameFix = 0;
+        while (bot.currentFrameFix < fixes.size() && fixes[bot.currentFrameFix].frame < frame)
+            bot.currentFrameFix++;
+    }
+
+    bot.lastPlayedFrame = frame;
+}
+
+} // namespace
+
 $execute {
     auto* mod = Mod::get();
     geode::listenForSettingChanges<std::string>("macro_accuracy", +[](std::string value) {
@@ -149,6 +179,7 @@ class $modify(PlayLayer) {
 
         bot.currentAction = 0;
         bot.currentFrameFix = 0;
+        bot.lastPlayedFrame = -1;
         bot.restart = false;
         bot.respawnFrame = frame;
 
@@ -179,6 +210,9 @@ class $modify(BGLHook, GJBaseGameLayer) {
     void processQueuedButtons(float dt, bool clearInputQueue) {
         auto& bot = Bot::get();
         PlayLayer* pl = PlayLayer::get();
+
+        if (bot.state != state::playing)
+            bot.lastPlayedFrame = -1;
 
         if (!pl)
             return GJBaseGameLayer::processQueuedButtons(dt, clearInputQueue);
@@ -246,6 +280,8 @@ class $modify(BGLHook, GJBaseGameLayer) {
             m_player2->releaseAllButtons();
             return;
         }
+
+        syncMacroToFrame(bot, frame);
 
         m_fields->macroInput = true;
 
