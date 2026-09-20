@@ -199,6 +199,7 @@ class Bot {
 
     size_t currentAction = 0;
     size_t currentFrameFix = 0;
+    int lastPlayedFrame = -1;
     bool frameFixes = false;
     bool inputFixes = false;
 
