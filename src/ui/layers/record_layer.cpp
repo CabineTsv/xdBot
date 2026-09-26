@@ -294,11 +294,10 @@ void RecordLayer::togglePlaying(CCObject *) {
         PlayLayer *plScene = CCScene::get()->getChildByType<PlayLayer>(0);
 
         if (pl && plScene) {
-            if (!pl->m_isPaused && !pl->m_levelEndAnimationStarted)
-                pl->m_isPlatformer ? pl->resetLevelFromStart()
-                                   : pl->resetLevel();
-            else
-                bot.restart = true;
+            bot.lastPlayedFrame = -1;
+            bot.firstAttempt = false;
+            bot.restart = false;
+            bot.respawnFrame = -1;
         }
     }
 
