@@ -8,7 +8,15 @@
 #include <Geode/modify/PauseLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 
+#include <deque>
+
 namespace {
+
+struct QueuedMacroInput {
+    int button;
+    bool down;
+    bool player2;
+};
 
 void syncMacroToFrame(Bot& bot, int frame) {
     auto const& inputs = bot.replay.inputs;
@@ -204,15 +212,17 @@ class $modify(BGLHook, GJBaseGameLayer) {
 
     struct Fields {
         bool macroInput = false;
-        size_t queuedMacroInputs = 0;
+        std::deque<QueuedMacroInput> pendingMacroInputs;
     };
 
     void processQueuedButtons(float dt, bool clearInputQueue) {
         auto& bot = Bot::get();
         PlayLayer* pl = PlayLayer::get();
 
-        if (bot.state != state::playing)
+        if (bot.state != state::playing) {
             bot.lastPlayedFrame = -1;
+            m_fields->pendingMacroInputs.clear();
+        }
 
         if (!pl)
             return GJBaseGameLayer::processQueuedButtons(dt, clearInputQueue);
@@ -291,7 +301,7 @@ class $modify(BGLHook, GJBaseGameLayer) {
             if (frame != bot.respawnFrame) {
                 input.player2 = !input.player2;
 
-                m_fields->queuedMacroInputs++;
+                m_fields->pendingMacroInputs.push_back({input.button, input.down, input.player2});
                 queueButton(input.button, input.down, input.player2, 0.0);
             }
             bot.currentAction++;
@@ -351,9 +361,14 @@ class $modify(BGLHook, GJBaseGameLayer) {
             return GJBaseGameLayer::handleButton(hold, button, player2);
 
         if (bot.state == state::playing) {
-            bool queuedMacroInput = m_fields->queuedMacroInputs > 0;
-            if (queuedMacroInput)
-                m_fields->queuedMacroInputs--;
+            bool queuedMacroInput = false;
+            if (!m_fields->pendingMacroInputs.empty()) {
+                auto const& next = m_fields->pendingMacroInputs.front();
+                if (next.button == button && next.down == hold && next.player2 == player2) {
+                    queuedMacroInput = true;
+                    m_fields->pendingMacroInputs.pop_front();
+                }
+            }
 
             if (bot.mod->getSavedValue<bool>("macro_ignore_inputs") && !m_fields->macroInput &&
                 !queuedMacroInput)
