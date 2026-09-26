@@ -1,14 +1,15 @@
 #include "practice_fixes.hpp"
 #include "checkpoint.hpp"
 #include <Geode/modify/GJBaseGameLayer.hpp>
+#include <Geode/modify/PauseLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/PlayerObject.hpp>
 #include <Geode/modify/UILayer.hpp>
 
 void resetTPSBypassState();
 
-static std::vector<GameObject*>& brokenPracticeObjects() {
-    static std::vector<GameObject*> objects;
+static std::vector<geode::Ref<GameObject>>& brokenPracticeObjects() {
+    static std::vector<geode::Ref<GameObject>> objects;
     return objects;
 }
 
@@ -22,13 +23,14 @@ static void markPracticeObjectBroken(GameObject* obj) {
         return;
 
     if (brokenPracticeObjectSet().insert(obj).second)
-        brokenPracticeObjects().push_back(obj);
+        brokenPracticeObjects().emplace_back(obj);
 }
 
-static void setBrokenPracticeObjects(std::vector<GameObject*> const& objects) {
+static void setBrokenPracticeObjects(std::vector<geode::Ref<GameObject>> const& objects) {
     brokenPracticeObjects() = objects;
     brokenPracticeObjectSet().clear();
-    brokenPracticeObjectSet().insert(objects.begin(), objects.end());
+    for (auto const& obj : objects)
+        brokenPracticeObjectSet().insert(obj.data());
 }
 
 static void clearBrokenPracticeObjects() {
@@ -124,7 +126,7 @@ struct PracticeCheckpointData {
     std::array<float, 2000> varianceValues = {};
     std::vector<GameObject*> calcNonEffectObjects;
     int calcNonEffectObjectsSize = 0;
-    std::vector<GameObject*> brokenObjects;
+    std::vector<geode::Ref<GameObject>> brokenObjects;
     uint64_t randomSeed = 0;
 
     PracticeCheckpointData() = default;
@@ -133,7 +135,7 @@ struct PracticeCheckpointData {
         PlayerObject* p1Obj,
         PlayerObject* p2Obj,
         PlayLayer* plObj,
-        std::vector<GameObject*> const& broken
+        std::vector<geode::Ref<GameObject>> const& broken
     ) {
         if (!plObj || !p1Obj)
             return;
@@ -190,8 +192,8 @@ struct PracticeCheckpointData {
         plObj->m_calcNonEffectObjects = calcNonEffectObjects;
         plObj->m_calcNonEffectObjectsSize = calcNonEffectObjectsSize;
 
-        for (auto* obj : brokenObjects) {
-            if (!obj)
+        for (auto const& obj : brokenObjects) {
+            if (!obj.data())
                 continue;
             obj->m_isDisabled = true;
             obj->m_isDisabled2 = true;
@@ -406,6 +408,16 @@ class $modify(FixPlayLayer, PlayLayer) {
         (void)self.setHookPriority("PlayLayer::resetLevel", firstPriority);
     }
 
+    bool init(GJGameLevel* level, bool p1, bool p2) {
+        clearBrokenPracticeObjects();
+        return PlayLayer::init(level, p1, p2);
+    }
+
+    void onQuit() {
+        clearBrokenPracticeObjects();
+        PlayLayer::onQuit();
+    }
+
     void loadFromCheckpoint(CheckpointObject* checkpoint) {
         if (PracticeFix::isLoadingFrameStepperBackstep() &&
             PracticeFix::applyFrameStepperBackstep(checkpoint))
@@ -498,6 +510,13 @@ class $modify(FixPlayLayer, PlayLayer) {
         heldButtonState().valid = false;
     }
 
+};
+
+class $modify(FixPauseLayer, PauseLayer) {
+    void goEdit() {
+        clearBrokenPracticeObjects();
+        PauseLayer::goEdit();
+    }
 };
 
 class $modify(FixGJBaseGameLayer, GJBaseGameLayer) {
