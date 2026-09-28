@@ -688,6 +688,9 @@ void MacroCell::handleLoad() {
 
     bot.replay.xdBotMacro = bot.replay.botInfo.name == "xdBot";
 
+    if (auto* pl = PlayLayer::get())
+        pl->m_checkpointArray->removeAllObjects();
+
     loadLayer->keyBackClicked();
 
     RecordLayer* newLayer = nullptr;
