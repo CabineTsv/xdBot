@@ -38,6 +38,18 @@ static void clearBrokenPracticeObjects() {
     brokenPracticeObjectSet().clear();
 }
 
+static bool isUsableCandidateList(std::vector<GameObject*> const& list, int count) {
+    if (count < 0 || static_cast<size_t>(count) > list.size())
+        return false;
+
+    for (int i = 0; i < count; ++i) {
+        if (!list[static_cast<size_t>(i)])
+            return false;
+    }
+
+    return true;
+}
+
 struct HeldButtonState {
     bool p1Holding = false;
     bool p2Holding = false;
@@ -189,8 +201,14 @@ struct PracticeCheckpointData {
         if (plObj->m_effectManager)
             plObj->m_effectManager->m_persistentItemCountMap = persistentItemMap;
         plObj->m_varianceValues = varianceValues;
-        plObj->m_calcNonEffectObjects = calcNonEffectObjects;
-        plObj->m_calcNonEffectObjectsSize = calcNonEffectObjectsSize;
+        // If this snapshot's list/count pair doesn't line up (count past the
+        // end of the vector, or a null inside the counted range), leave the
+        // engine's own live list alone rather than overwrite it with
+        // something GJBaseGameLayer::collisionCheckObjects would crash on.
+        if (isUsableCandidateList(calcNonEffectObjects, calcNonEffectObjectsSize)) {
+            plObj->m_calcNonEffectObjects = calcNonEffectObjects;
+            plObj->m_calcNonEffectObjectsSize = calcNonEffectObjectsSize;
+        }
 
         for (auto const& obj : brokenObjects) {
             if (!obj.data())
@@ -520,11 +538,65 @@ class $modify(FixPauseLayer, PauseLayer) {
 };
 
 class $modify(FixGJBaseGameLayer, GJBaseGameLayer) {
+    static void onModify(auto& self) {
+        (void)self.setHookPriority("GJBaseGameLayer::collisionCheckObjects", 0x500000);
+    }
+
     void destroyObject(GameObject* obj) {
         if (PracticeFix::shouldEnable() && m_isPracticeMode)
             markPracticeObjectBroken(obj);
 
         GJBaseGameLayer::destroyObject(obj);
+    }
+
+    void collisionCheckObjects(PlayerObject* player, gd::vector<GameObject*>* objects, int objectCount, float dt) {
+        if (!objects) {
+            if (objectCount > 0)
+                return;
+
+            GJBaseGameLayer::collisionCheckObjects(player, objects, objectCount, dt);
+            return;
+        }
+
+        if (objectCount > 0) {
+            GameObject* const* data = objects->data();
+            int safeCount = objectCount;
+
+            if (!data)
+                safeCount = 0;
+            else if (static_cast<size_t>(safeCount) > objects->capacity())
+                safeCount = static_cast<int>(objects->capacity());
+
+            if (safeCount > 0 && Bot::get().state != state::none) {
+                int firstNull = -1;
+                for (int i = 0; i < safeCount; ++i) {
+                    if (!data[i]) {
+                        firstNull = i;
+                        break;
+                    }
+                }
+
+                if (firstNull >= 0) {
+                    gd::vector<GameObject*> filtered;
+                    filtered.reserve(static_cast<size_t>(safeCount));
+                    for (int i = 0; i < safeCount; ++i) {
+                        if (data[i])
+                            filtered.push_back(data[i]);
+                    }
+
+                    GJBaseGameLayer::collisionCheckObjects(
+                        player, &filtered, static_cast<int>(filtered.size()), dt);
+                    return;
+                }
+            }
+
+            if (safeCount != objectCount) {
+                GJBaseGameLayer::collisionCheckObjects(player, objects, safeCount, dt);
+                return;
+            }
+        }
+
+        GJBaseGameLayer::collisionCheckObjects(player, objects, objectCount, dt);
     }
 };
 
