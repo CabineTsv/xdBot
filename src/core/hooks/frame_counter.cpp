@@ -15,10 +15,6 @@ class $modify(FrameCounterGJBaseGameLayer, GJBaseGameLayer) {
             !pl->m_player1->m_isDead &&
             (!pl->m_gameState.m_isDualMode || (pl->m_player2 && !pl->m_player2->m_isDead));
 
-        if (bot.state == state::playing && !bot.tpsEnabled && bot.replay.framerate != 240.f) {
-            bot.setTpsEnabled(true);
-        }
-
         GJBaseGameLayer::processQueuedButtons(dt, clearInputQueue);
 
         if (!isPlaying || bot.updater.isFrozenUpdate())
