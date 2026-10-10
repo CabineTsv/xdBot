@@ -5,6 +5,7 @@
 #include "../ui/game/game_ui.hpp"
 #include "../ui/layers/record_layer.hpp"
 
+#include <cmath>
 #include <random>
 
 namespace {
@@ -33,6 +34,14 @@ bool Bot::enabledIncompatibleGDSettings() {
 float Bot::getTPS() {
     auto& bot = Bot::get();
     return bot.tpsEnabled ? bot.tps : 240.f;
+}
+
+float Bot::macroTPS() {
+    float framerate = Bot::get().replay.framerate;
+    if (!std::isfinite(framerate) || framerate < 1.f || framerate > 999999.f)
+        return 240.f;
+
+    return framerate;
 }
 
 int Bot::getCurrentFrame(bool editor) {
@@ -242,21 +251,38 @@ void Bot::updateMacroTPS() {
     auto& bot = Bot::get();
 
     if (bot.state != state::none && !bot.replay.inputs.empty()) {
-        if (bot.previousTps == 0.f) {
+        float macroTps = Bot::macroTPS();
+
+        if (!bot.macroTpsActive) {
             bot.previousTpsEnabled = bot.tpsEnabled;
             bot.previousTps = bot.tps;
+            bot.macroTpsActive = true;
         }
 
-        bot.setTps(bot.replay.framerate);
-        bot.setTpsEnabled(bot.replay.framerate != 240.f);
-    } else if (bot.previousTps != 0.f) {
-        bot.setTpsEnabled(bot.previousTpsEnabled);
+        bot.setTps(macroTps);
+        bot.setTpsEnabled(macroTps != 240.f);
+    } else if (bot.macroTpsActive) {
+        bot.macroTpsActive = false;
+
         bot.setTps(bot.previousTps);
-        bot.previousTps = 0.f;
+        bot.setTpsEnabled(bot.previousTpsEnabled);
     }
 
     if (bot.layer)
         static_cast<RecordLayer*>(bot.layer)->updateTPS();
+}
+
+void Bot::syncMacroTPS() {
+    auto& bot = Bot::get();
+
+    if (bot.state == state::playing && !bot.replay.inputs.empty()) {
+        float macroTps = Bot::macroTPS();
+
+        if (!bot.macroTpsActive || bot.tps != macroTps || bot.tpsEnabled != (macroTps != 240.f))
+            Bot::updateMacroTPS();
+    } else if (bot.macroTpsActive && (bot.state == state::none || bot.replay.inputs.empty())) {
+        Bot::updateMacroTPS();
+    }
 }
 
 void Bot::toggleRecording() {
