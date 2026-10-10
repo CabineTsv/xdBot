@@ -1,5 +1,6 @@
 #include "../bot.hpp"
 
+#include "../../hacks/intentional_death.hpp"
 #include "../../practice_fixes/practice_fixes.hpp"
 #include "../../trajectory/trajectory.hpp"
 #include "../../ui/layers/record_layer.hpp"
@@ -24,7 +25,12 @@ void syncMacroToFrame(Bot& bot, int frame) {
                   (cursor == inputs.size() || static_cast<int>(inputs[cursor].frame) > last) &&
                   (cursor == 0 || static_cast<int>(inputs[cursor - 1].frame) <= last);
 
+    if (IntentionalDeath::shifting())
+        inSync = last >= 0 && frame >= last && cursor <= inputs.size();
+
     if (!inSync) {
+        IntentionalDeath::reset();
+
         bot.currentAction = 0;
         while (bot.currentAction < inputs.size() &&
                static_cast<int>(inputs[bot.currentAction].frame) < frame)
@@ -186,6 +192,8 @@ class $modify(PlayLayer) {
         bot.restart = false;
         bot.respawnFrame = frame;
 
+        IntentionalDeath::reset();
+
         if (bot.state == state::recording)
             Bot::updateMacroInfo(this);
 
@@ -197,8 +205,7 @@ class $modify(PlayLayer) {
             bot.checkpoints.clear();
 
             bot.replay.framerate = 240.f;
-            if (bot.layer)
-                static_cast<RecordLayer*>(bot.layer)->updateTPS();
+            Bot::updateMacroTPS();
         }
     }
 };
@@ -288,10 +295,13 @@ class $modify(BGLHook, GJBaseGameLayer) {
 
         syncMacroToFrame(bot, frame);
 
+        IntentionalDeath::update(PlayLayer::get());
+
         m_fields->macroInput = true;
 
         while (bot.currentAction < bot.replay.inputs.size() &&
-               frame >= bot.replay.inputs[bot.currentAction].frame) {
+               IntentionalDeath::due(
+                   bot.currentAction, bot.replay.inputs[bot.currentAction].frame, frame)) {
             auto input = bot.replay.inputs[bot.currentAction];
             if (frame != bot.respawnFrame) {
                 input.player2 = !input.player2;
@@ -300,6 +310,7 @@ class $modify(BGLHook, GJBaseGameLayer) {
                 queueButton(input.button, input.down, input.player2, 0.0);
             }
             bot.currentAction++;
+            IntentionalDeath::executed(frame);
             bot.safeMode = true;
         }
 
@@ -315,6 +326,9 @@ class $modify(BGLHook, GJBaseGameLayer) {
         }
 
         if (!(bot.frameFixes || bot.inputFixes) || !PlayLayer::get())
+            return;
+
+        if (IntentionalDeath::suppressFixes())
             return;
 
         while (bot.currentFrameFix < bot.replay.frameFixes.size() &&
