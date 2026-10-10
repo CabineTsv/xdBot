@@ -1,6 +1,7 @@
 #include "updater.hpp"
 
 #include "bot.hpp"
+#include "../hacks/intentional_death.hpp"
 #include "../trajectory/trajectory.hpp"
 #include "../practice_fixes/practice_fixes.hpp"
 
@@ -49,7 +50,8 @@ bool isRendererRecording(Bot const& bot) {
 }
 
 bool useFastLockDelta(Bot const& bot) {
-    return bot.lockDelta && bot.lockDeltaFast && bot.state == state::playing && !isRendererRecording(bot);
+    return bot.lockDelta && bot.lockDeltaFast && bot.state == state::playing &&
+           !isRendererRecording(bot) && !IntentionalDeath::shifting();
 }
 
 template <class Callback>
@@ -142,8 +144,7 @@ void BotUpdater::runScheduler(float dt, SchedulerUpdate const& update) {
     if (updating)
         return update(dt);
 
-    if (bot.state == state::playing && !bot.tpsEnabled && bot.replay.framerate != 240.f)
-        bot.setTpsEnabled(true);
+    Bot::syncMacroTPS();
 
     if (bot.state == state::none && !bot.speedhackEnabled && !bot.tpsEnabled && !bot.lockDelta &&
         !bot.frameStepper && !bot.showTrajectory) {
