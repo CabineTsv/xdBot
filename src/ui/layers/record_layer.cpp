@@ -8,6 +8,7 @@
 #include "../macro/macro_editor.hpp"
 #include "../settings/autoclicker_settings_layer.hpp"
 #include "clickbot_layer.hpp"
+#include "../settings/intentional_death_settings_layer.hpp"
 #include "../settings/mirror_settings_layer.hpp"
 #include "../settings/noclip_settings_layer.hpp"
 #include "../settings/render_presets_layer.hpp"
@@ -39,6 +40,11 @@ void openAutoclickerSettings(CCObject*) {
 
 void openMirrorSettings(CCObject*) {
     if (auto* layer = MirrorSettingsLayer::create())
+        layer->show();
+}
+
+void openIntentionalDeathSettings(CCObject*) {
+    if (auto* layer = IntentionalDeathLayer::create())
         layer->show();
 }
 
@@ -95,7 +101,9 @@ const std::vector<std::vector<RecordSetting>> settings{
      {"Disable Shaders:", "disable_shaders", InputType::None},
      {"Instant Mirror Portal:", "instant_mirror_portal", InputType::None},
      {"No Mirror Portal:", "no_mirror_portal", InputType::None},
-     {"Enable Auto Saving:", "macro_auto_save", InputType::Autosave}}};
+     {"Enable Auto Saving:", "macro_auto_save", InputType::Autosave}},
+    {{"Intentional Death:", "macro_intentional_death", InputType::Settings, 0.325f,
+      openIntentionalDeathSettings}}};
 
 $execute {
     auto* mod = Mod::get();
@@ -419,7 +427,7 @@ void RecordLayer::textChanged(CCTextInputNode *node) {
         float value = geode::utils::numFromString<float>(tpsInput->getString())
                           .unwrapOr(0.f);
         if (std::string_view(tpsInput->getString()) != "" && value < 999999 &&
-            value >= 0.f) {
+            value >= 1.f) {
             Bot::get().setTps(value);
             Bot::get().leftOver = 0.f;
         }
@@ -485,6 +493,8 @@ void RecordLayer::toggleSetting(CCObject *obj) {
         bot.clickbotOnlyHolding = value;
     if (id == "macro_tps_enabled")
         bot.setTpsEnabled(value);
+    if (id == "macro_intentional_death")
+        IntentionalDeath::reload();
     if (id == "autoclicker_enabled")
         bot.autoclicker = value;
     if (id == "macro_always_practice_fixes")
@@ -1194,7 +1204,7 @@ void RecordLayer::goToSettingsPage(int page) {
 
     tpsBg = nullptr;
 
-    for (size_t i = 0; i < 6; i++)
+    for (size_t i = 0; i < 6 && i < settings[page].size(); i++)
         loadSetting(settings[page][i], ySettingPositions[i]);
 
     updateDots();
@@ -1220,7 +1230,7 @@ void RecordLayer::updateTPS() {
     auto &bot = Bot::get();
 
     tpsToggle->toggle(bot.tpsEnabled);
-    tpsInput->setString(fmt::format("{:.0f}", Mod::get()->getSavedValue<double>("macro_tps")));
+    tpsInput->setString(fmt::format("{:.0f}", static_cast<double>(bot.tps)));
 
     if (bot.state == state::none || bot.replay.inputs.empty()) {
         if (CCMenuItemSpriteExtra *btn =
