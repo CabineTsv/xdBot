@@ -39,6 +39,8 @@ class Bot {
 
     static float getTPS();
 
+    static float macroTPS();
+
     static int getCurrentFrame(bool editor = false);
 
     static void updateSeed(bool isRestart = false);
@@ -58,6 +60,8 @@ class Bot {
     static void updateMacroInfo(PlayLayer* pl);
 
     static void updateMacroTPS();
+
+    static void syncMacroTPS();
 
     static void toggleRecording();
 
@@ -147,11 +151,10 @@ class Bot {
         if (tpsEnabled == enabled)
             return;
 
-        if (state == none)
-            previousTpsEnabled = tpsEnabled;
         tpsEnabled = enabled;
 
-        mod->setSavedValue("macro_tps_enabled", enabled);
+        if (!macroTpsActive)
+            mod->setSavedValue("macro_tps_enabled", enabled);
 
         for (auto& cb : onTpsEnabledChanged)
             cb(enabled);
@@ -167,18 +170,18 @@ class Bot {
         if (tps == newTps)
             return;
 
-        if (state == none)
-            previousTps = tps;
         tps = newTps;
 
-        mod->setSavedValue("macro_tps", static_cast<double>(newTps));
+        if (!macroTpsActive)
+            mod->setSavedValue("macro_tps", static_cast<double>(newTps));
 
         for (auto& cb : onTpsChanged)
             cb(static_cast<double>(newTps));
     }
 
+    bool macroTpsActive = false;
     bool previousTpsEnabled = false;
-    float previousTps = 0.f;
+    float previousTps = 240.f;
     bool autoclicker = false;
     bool autoclickerP1 = false;
     bool alwaysPracticeFixes = false;
