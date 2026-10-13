@@ -304,10 +304,11 @@ class $modify(BGLHook, GJBaseGameLayer) {
                    bot.currentAction, bot.replay.inputs[bot.currentAction].frame, frame)) {
             auto input = bot.replay.inputs[bot.currentAction];
             if (frame != bot.respawnFrame) {
-                input.player2 = !input.player2;
+                bool twoPlayer = m_levelSettings && m_levelSettings->m_twoPlayerMode;
+                bool queueAsPlayer2 = twoPlayer ? input.player2 : !input.player2;
 
                 m_fields->pendingMacroInputCounts[{input.button, input.down}]++;
-                queueButton(input.button, input.down, input.player2, 0.0);
+                queueButton(input.button, input.down, queueAsPlayer2, 0.0);
             }
             bot.currentAction++;
             IntentionalDeath::executed(frame);
