@@ -159,7 +159,8 @@ void applyReplayInputsForPrediction(
     auto const& inputs = bot.replay.inputs;
     while (inputIndex < inputs.size() && inputs[inputIndex].frame <= frame) {
         auto const& input = inputs[inputIndex];
-        bool enginePlayer2 = !input.player2;
+        bool twoPlayer = pl->m_levelSettings && pl->m_levelSettings->m_twoPlayerMode;
+        bool enginePlayer2 = twoPlayer ? input.player2 : !input.player2;
         PlayerObject* player = enginePlayer2 ?
             ShowTrajectory::fakePlayer(false) :
             ShowTrajectory::fakePlayer(true);
