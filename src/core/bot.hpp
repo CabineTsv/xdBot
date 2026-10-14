@@ -7,7 +7,6 @@
 #include "../renderer/renderer.hpp"
 #include "../settings/settings.hpp"
 #include <Geode/Geode.hpp>
-#include <eclipse.eclipse-menu/include/config.hpp>
 
 enum state { none, recording, playing };
 
@@ -148,6 +147,9 @@ class Bot {
     std::vector<geode::Function<void(double)>> onTpsChanged;
 
     void setTpsEnabled(bool enabled) {
+        if (enabled && tpsUnavailable)
+            return;
+
         if (tpsEnabled == enabled)
             return;
 
@@ -158,12 +160,6 @@ class Bot {
 
         for (auto& cb : onTpsEnabledChanged)
             cb(enabled);
-
-        if (Loader::get()->getLoadedMod("eclipse.eclipse-menu")) {
-            eclipse::config::setInternal("global.tpsbypass.toggle", enabled);
-            if (enabled)
-                eclipse::config::setInternal("global.tpsbypass", static_cast<double>(tps));
-        }
     }
 
     void setTps(float newTps) {
@@ -179,6 +175,7 @@ class Bot {
             cb(static_cast<double>(newTps));
     }
 
+    bool tpsUnavailable = false;
     bool macroTpsActive = false;
     bool previousTpsEnabled = false;
     float previousTps = 240.f;
