@@ -112,12 +112,6 @@ class $modify(PlayLayer) {
     void postUpdate(float dt) {
         PlayLayer::postUpdate(dt);
 
-        auto& bot = Bot::get();
-        if (bot.tpsEnabled && Loader::get()->getLoadedMod("eclipse.eclipse-menu")) {
-            eclipse::config::setInternal("global.tpsbypass.toggle", true);
-            eclipse::config::setInternal("global.tpsbypass", static_cast<double>(bot.tps));
-        }
-
         if (m_fields->delayedLevelRestart != -1 &&
             m_fields->delayedLevelRestart <= Bot::getCurrentFrame()) {
             m_fields->delayedLevelRestart = -1;
