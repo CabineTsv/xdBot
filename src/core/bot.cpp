@@ -277,8 +277,9 @@ void Bot::syncMacroTPS() {
 
     if (bot.state == state::playing && !bot.replay.inputs.empty()) {
         float macroTps = Bot::macroTPS();
+        bool wantEnabled = macroTps != 240.f && !bot.tpsUnavailable;
 
-        if (!bot.macroTpsActive || bot.tps != macroTps || bot.tpsEnabled != (macroTps != 240.f))
+        if (!bot.macroTpsActive || bot.tps != macroTps || bot.tpsEnabled != wantEnabled)
             Bot::updateMacroTPS();
     } else if (bot.macroTpsActive && (bot.state == state::none || bot.replay.inputs.empty())) {
         Bot::updateMacroTPS();
