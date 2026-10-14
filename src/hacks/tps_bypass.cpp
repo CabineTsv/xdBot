@@ -234,8 +234,10 @@ void applyPatches() {
 
         if (addr == sinaps::not_found || bytes.empty()) {
             geode::log::error(
-                "TPS Bypass: Failed to find patch address or bytes (possibly already patched)");
-            Bot::get().setTpsEnabled(false);
+                "TPS Bypass: Failed to find patch address or bytes (possibly already patched, "
+                "for example by another mod's physics bypass that was enabled at startup)");
+            Bot::get().tpsUnavailable = true;
+            Bot::get().tpsEnabled = false;
             return;
         }
 
@@ -246,7 +248,8 @@ void applyPatches() {
         } else {
             geode::log::error("TPS Bypass: Failed to patch GJBaseGameLayer::update: {}",
                               res.unwrapErr());
-            Bot::get().setTpsEnabled(false);
+            Bot::get().tpsUnavailable = true;
+            Bot::get().tpsEnabled = false;
             return;
         }
 
@@ -276,9 +279,7 @@ void applyPatches() {
 }
 
 $execute {
-    if (!Loader::get()->getLoadedMod("eclipse.eclipse-menu")) {
-        applyPatches();
-    }
+    applyPatches();
 }
 
 class $modify(TPSBypassGJBGLHook, GJBaseGameLayer) {
