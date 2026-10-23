@@ -21,6 +21,16 @@ endif()
 
 add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
 
+if (("${CMAKE_SYSTEM_NAME}" STREQUAL "iOS" OR IOS) AND TARGET GeodeBindings)
+    get_target_property(XDBOT_BINDINGS_TYPE GeodeBindings TYPE)
+
+    if (EXISTS "$ENV{GEODE_SDK}/loader/include/Geode/fmod/fmod.hpp" AND
+        "${XDBOT_BINDINGS_TYPE}" STREQUAL "STATIC_LIBRARY")
+        target_compile_options(GeodeBindings PRIVATE "SHELL:-include Geode/fmod/fmod.hpp")
+        message(STATUS "xdBot: force-including the FMOD C++ header for the iOS bindings (geode-sdk/bindings issue 1413)")
+    endif()
+endif()
+
 CPMAddPackage("gh:prevter/msgpack-for-matjson#12edd5a")
 CPMAddPackage("gh:prevter/sinaps#b9c3434")
 CPMAddPackage("gh:maxnut/GDR-converter#71104a9")
