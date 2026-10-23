@@ -254,6 +254,19 @@
 			"description": "Scales the max UPR cap by the current visual FPS when lock delta real time is disabled.",
 			"type": "bool",
 			"default": true
+		},
+		"input_buffer": {
+			"name": "Input Buffer",
+			"description": "Keeps a tap that was pressed and released slightly too early to do anything (just before landing or before touching an orb) and applies it on the first tick the action becomes possible. Never changes inputs while a macro is playing.",
+			"type": "bool",
+			"default": false
+		},
+		"input_buffer_ticks": {
+			"name": "Input Buffer Ticks",
+			"description": "How many ticks early a tap can be and still be buffered. One tick is one physics step (1/240s, or 1/TPS with TPS Bypass).",
+			"type": "string",
+			"default": "4 Ticks",
+			"one-of": ["2 Ticks", "4 Ticks", "8 Ticks", "16 Ticks"]
 		}
 	},
 	"resources": {
